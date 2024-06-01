@@ -64,7 +64,7 @@ DistanceSensor sensor(TRIG_PIN, ECHO_PIN);
 unsigned long previousDistanceMillis = 0;
 unsigned long previousScrollMillis = 0;
 const long distanceInterval = 1000;  // Update distance every 1000 milliseconds
-const long scrollInterval = 45;     // Update scrolling every 100 milliseconds
+const long scrollInterval = 45;     // Update scrolling every 45 milliseconds
 
 void setup() {
   Serial.begin(9600); // Initialize Serial Monitor
