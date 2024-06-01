@@ -40,13 +40,12 @@ class LedMatrix {
     }
 
     void update() {
-      digitalWrite(this->latchPin, LOW);
-      for (byte i = 0; i < 8; i++) {
-        shiftOut(this->dataPin, this->clockPin, LSBFIRST, displayBuffer[i]);
-        shiftOut(this->dataPin, this->clockPin, LSBFIRST, 1 << i);
-        digitalWrite(this->latchPin, HIGH);  // Move latch HIGH inside the loop
-        delayMicroseconds(1);                // Small delay to ensure latch timing
-        digitalWrite(this->latchPin, LOW);   // Move latch LOW inside the loop
+      for (byte row = 0; row < 8; row++) {
+        digitalWrite(this->latchPin, LOW);
+        shiftOut(this->dataPin, this->clockPin, LSBFIRST, displayBuffer[row]);
+        shiftOut(this->dataPin, this->clockPin, LSBFIRST, 1 << row);
+        digitalWrite(this->latchPin, HIGH);
+        delayMicroseconds(100);  // Adjust this delay to control flickering
       }
 
       // Debugging output for the update function
@@ -146,19 +145,19 @@ class DibsE {
       Serial.println(tens);
       Serial.print("Units: ");
       Serial.println(units);
-
+      
       // Clear the display buffer
       ledMatrix.clear();
-      
-      // Display hundreds in the 1st column
+
+      // Display hundreds in the 7th column
       ledMatrix.drawColumn(7, createBitmask(hundreds));
-      
-      // Display tens in the 3rd column
+
+      // Display tens in the 5th column
       ledMatrix.drawColumn(5, createBitmask(tens));
-      
-      // Display units in the 5th column
+
+      // Display units in the 3rd column
       ledMatrix.drawColumn(3, createBitmask(units));
-    
+
       // Update the LED matrix display
       ledMatrix.update();
 
