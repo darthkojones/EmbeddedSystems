@@ -40,15 +40,11 @@ class LedMatrix {
     }
 
     void update() {
+      digitalWrite(this->latchPin, LOW);
       for (byte i = 0; i < 8; i++) {
-        digitalWrite(this->latchPin, LOW);
         shiftOut(this->dataPin, this->clockPin, LSBFIRST, displayBuffer[i]);
         shiftOut(this->dataPin, this->clockPin, LSBFIRST, 1 << i);
-        digitalWrite(this->latchPin, HIGH);
       }
-      digitalWrite(this->latchPin, LOW);
-      shiftOut(this->dataPin, this->clockPin, LSBFIRST, 0);
-      shiftOut(this->dataPin, this->clockPin, LSBFIRST, 1);
       digitalWrite(this->latchPin, HIGH);
     }
 
@@ -118,7 +114,7 @@ class DibsE {
       Serial.println(distance);
     
       // Control RGB LED based on distance
-      int blinkRate = map(distance, 0, 200, 100, 1000); // Adjust these values as necessary
+      int blinkRate = map(distance, 0, 200, 100, 1000); 
       digitalWrite(RGB_RED_PIN, HIGH);
       delay(blinkRate / 2);
       digitalWrite(RGB_RED_PIN, LOW);
@@ -133,7 +129,8 @@ class DibsE {
       }
     
       // Map the distance to the LED matrix height (inverted)
-      byte newColumn = map(distance, 0, 200, 8, 0); // Adjust these values as necessary
+      byte newColumn = map(distance, 0, 70, 0, 7); 
+      if (newColumn > 7) newColumn = 7; // Ensure the column index is within bounds
       previousColumns[0] = (1 << newColumn) - 1; // Create the mask for the column
     
       // Clear the display buffer
@@ -163,5 +160,5 @@ void setup() {
 
 void loop() {
   dibse.update();
-  delay(3000); // Update every 3 seconds
+  delay(1000); // Update every second
 }
