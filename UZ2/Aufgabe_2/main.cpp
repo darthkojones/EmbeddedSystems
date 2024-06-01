@@ -1,6 +1,6 @@
 #include "dibse.h"
 
-DistanceSensor sensor(9, 10); // Trigger pin 9, Echo pin 10
+DistanceSensor sensor(8, 4); // Trigger pin 8, Echo pin 4
 DibsE dibse(sensor);
 
 void setup() {
