@@ -1,0 +1,56 @@
+#include <Arduino.h>
+
+// Define the pins for the ultrasonic sensor
+#define TRIG_PIN 8
+#define ECHO_PIN 4
+
+// Distance Sensor class
+class DistanceSensor {
+  private:
+    int trigPin;
+    int echoPin;
+    long duration;
+    int distance;
+
+  public:
+    DistanceSensor(int tPin, int ePin) {
+      trigPin = tPin;
+      echoPin = ePin;
+    }
+
+    void begin() {
+      pinMode(trigPin, OUTPUT);
+      pinMode(echoPin, INPUT);
+    }
+
+    int getDistance() {
+      digitalWrite(trigPin, LOW);
+      delayMicroseconds(2);
+
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPin, LOW);
+
+      duration = pulseIn(echoPin, HIGH);
+      distance = duration * 0.034 / 2;
+
+  
+
+      return distance;
+    }
+};
+
+// Initialize DistanceSensor object
+DistanceSensor sensor(TRIG_PIN, ECHO_PIN);
+
+void setup() {
+  Serial.begin(9600); // Initialize Serial Monitor
+  sensor.begin();
+}
+
+void loop() {
+  int distance = sensor.getDistance();
+  Serial.print("Calculated Distance: ");
+  Serial.println(distance);
+  delay(1000); // Update every second
+}
