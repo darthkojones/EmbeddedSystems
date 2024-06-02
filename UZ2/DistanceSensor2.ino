@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <Adafruit_NeoPixel.h>
 #include "LedMatrix.h"
 #include "LedMatrixFont.h"
 
@@ -14,9 +13,6 @@
 // Define the pins for the ultrasonic sensor
 #define TRIG_PIN 8
 #define ECHO_PIN 4
-
-// Define the pin for the RGB LED
-#define RGB_LED_PIN A4
 
 // Distance Sensor class
 class DistanceSensor {
@@ -58,67 +54,12 @@ class DistanceSensor {
     }
 };
 
-// DibsE class for handling RGB LED
-class DibsE {
-  private:
-    int rgbLedPin;
-    uint32_t rgbLedColor;
-    unsigned long rgbLedTimer;
-    unsigned long rgbLedTimeout;
-    bool rgbLedStatus;
-    Adafruit_NeoPixel* rgbLedObject;
-
-  public:
-    DibsE(int pin) : rgbLedPin(pin), rgbLedTimer(0), rgbLedTimeout(1000), rgbLedStatus(false) { // default timeout 1000ms
-      rgbLedObject = new Adafruit_NeoPixel(1, rgbLedPin, NEO_GRB + NEO_KHZ800);
-      rgbLedObject->begin();
-    }
-
-    ~DibsE() {
-      delete rgbLedObject;
-    }
-
-    void setColor(int red, int green, int blue) {
-      rgbLedObject->setPixelColor(0, rgbLedObject->Color(red, green, blue));
-      rgbLedObject->show();
-      Serial.print("Setting color to: R=");
-      Serial.print(red);
-      Serial.print(", G=");
-      Serial.print(green);
-      Serial.print(", B=");
-      Serial.println(blue);
-    }
-
-    void simpleBlinkOn(int interval, int red, int green, int blue) {
-      rgbLedTimeout = interval;
-      rgbLedColor = rgbLedObject->Color(red, green, blue);
-      rgbLedObject->setPixelColor(0, rgbLedColor);
-      rgbLedObject->show();
-      rgbLedStatus = true;
-    }
-
-    void loop() {
-      if (millis() > rgbLedTimeout + rgbLedTimer) {
-        rgbLedTimer = millis();
-        if (rgbLedStatus) {
-          rgbLedObject->clear();
-          rgbLedStatus = false;
-        } else {
-          rgbLedObject->setPixelColor(0, rgbLedColor);
-          rgbLedObject->show();
-          rgbLedStatus = true;
-        }
-      }
-    }
-};
-
 // Initialize LedMatrix object
 LedMatrix ledMatrix(LATCH_PIN, DATA_PIN, CLOCK_PIN);
 LedMatrixTextBuffer textBuffer(ledMatrix);
 
-// Initialize DistanceSensor and DibsE objects
+// Initialize DistanceSensor object
 DistanceSensor sensor(TRIG_PIN, ECHO_PIN);
-DibsE myDibse(RGB_LED_PIN);
 
 unsigned long previousDistanceMillis = 0;
 unsigned long previousScrollMillis = 0;
@@ -146,14 +87,7 @@ void loop() {
     // Update text buffer with distance string
     textBuffer.drawText(distanceStr, 0);
 
-    // Determine the LED color based on the distance
-    if (distance < 20) {
-      myDibse.setColor(255, 0, 0); // Red for distance < 20 cm
-    } else if (distance < 40) {
-      myDibse.setColor(255, 165, 0); // Orange for distance between 20 and 40 cm
-    } else {
-      myDibse.setColor(0, 255, 0); // Green for distance >= 40 cm
-    }
+ 
   }
 
   // Check if it's time to scroll the text
