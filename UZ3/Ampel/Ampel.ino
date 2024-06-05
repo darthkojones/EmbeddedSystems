@@ -62,7 +62,7 @@ class Ampel {
     unsigned long emergencyCooldownTime;
     unsigned long nightModeCooldownTime;
     bool isNightMode;
-    bool extendingPhase;  // Added flag to handle phase extension
+    bool extendingPhase;  
 
   public:
     Ampel() : state(RED), stateStartTime(0), blinkStartTime(0), pedestrianCooldownTime(0), emergencyCooldownTime(0), nightModeCooldownTime(0), isNightMode(false), extendingPhase(false) {}
@@ -222,7 +222,7 @@ class Ampel {
 Ampel ampel;
 
 void setup() {
-  Serial.begin(9600); // Initialize Serial Monitor
+  Serial.begin(9600); 
   ampel.begin();
 }
 
@@ -231,5 +231,5 @@ void loop() {
   ampel.checkPedestrian();
   ampel.checkEmergencyVehicle();
   ampel.update();
-  delay(10); // Small delay to avoid excessive CPU usage
+  delay(10); 
 }
