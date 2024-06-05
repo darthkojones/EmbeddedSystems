@@ -62,9 +62,10 @@ class Ampel {
     unsigned long emergencyCooldownTime;
     unsigned long nightModeCooldownTime;
     bool isNightMode;
+    bool extendingPhase;  // Added flag to handle phase extension
 
   public:
-    Ampel() : state(RED), stateStartTime(0), blinkStartTime(0), pedestrianCooldownTime(0), emergencyCooldownTime(0), nightModeCooldownTime(0), isNightMode(false) {}
+    Ampel() : state(RED), stateStartTime(0), blinkStartTime(0), pedestrianCooldownTime(0), emergencyCooldownTime(0), nightModeCooldownTime(0), isNightMode(false), extendingPhase(false) {}
 
     void begin() {
       rgbLed.begin();
@@ -104,10 +105,18 @@ class Ampel {
 
         case YELLOW:
           if (currentMillis - stateStartTime >= 3000) {
-            state = GREEN;
-            stateStartTime = currentMillis;
-            setColor(0, 255, 0); // Green
-            Serial.println("State: GREEN");
+            if (extendingPhase) {
+              state = RED;
+              stateStartTime = currentMillis;
+              setColor(255, 0, 0); // Red
+              extendingPhase = false;
+              Serial.println("State: RED");
+            } else {
+              state = GREEN;
+              stateStartTime = currentMillis;
+              setColor(0, 255, 0); // Green
+              Serial.println("State: GREEN");
+            }
           }
           break;
 
@@ -143,14 +152,14 @@ class Ampel {
       float lightLevel = lightSensor.ReadPercentage();
 
       if (currentMillis - nightModeCooldownTime > 1000) {
-        if (lightLevel < 10.0) {
+        if (lightLevel < 30.0) {  // Adjusted threshold for simulation
           if (!isNightMode) {
             isNightMode = true;
             stateStartTime = millis();
             setColor(255, 255, 0); // Yellow
             Serial.println("Night mode activated");
           }
-        } else if (lightLevel > 20.0) {
+        } else if (lightLevel > 60.0) {  // Adjusted threshold for simulation
           if (isNightMode) {
             isNightMode = false;
             state = RED;
@@ -173,7 +182,8 @@ class Ampel {
           stateStartTime = currentMillis;
           setColor(255, 255, 0); // Yellow
           Serial.println("Switching to YELLOW");
-        } else if (state == YELLOW) {
+          // Add a short delay before transitioning to RED to ensure YELLOW state is visible
+          delay(500);
           state = RED;
           stateStartTime = currentMillis;
           setColor(255, 0, 0); // Red
@@ -195,6 +205,12 @@ class Ampel {
           stateStartTime = currentMillis;
           setColor(255, 255, 0); // Yellow
           Serial.println("Switching to YELLOW");
+          // Add a short delay before transitioning to GREEN to ensure YELLOW state is visible
+          delay(500);
+          state = GREEN;
+          stateStartTime = currentMillis;
+          setColor(0, 255, 0); // Green
+          Serial.println("Switching to GREEN");
         } else if (state == GREEN || state == BLINKING_GREEN) {
           stateStartTime += 5000; // Extend GREEN phase by 5 seconds
           Serial.println("Extending GREEN phase by 5 seconds");
