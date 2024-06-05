@@ -14,13 +14,13 @@
 // Adafruit_NeoPixel object for controlling the RGB LED
 Adafruit_NeoPixel rgbLed(1, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
 
-// Olimex_Light_Sensor class definition
+// Light Sensor class
 class Olimex_Light_Sensor {
   private:
     int Pin;
   public:
     Olimex_Light_Sensor(int _Pin) : Pin(_Pin) {
-      pinMode(Pin, INPUT_PULLUP);
+      pinMode(Pin, INPUT);
     }
     int Read() {
       return analogRead(Pin);
@@ -30,7 +30,7 @@ class Olimex_Light_Sensor {
     }
 };
 
-// Olimex_Joystick class definition
+// Joystick class
 class Olimex_Joystick {
   private:
     int xPin, yPin, butPin;
@@ -49,146 +49,172 @@ class Olimex_Joystick {
     }
 };
 
-// Initialize sensors
+// Initialize sensor objects
 Olimex_Light_Sensor lightSensor(LIGHT_SENSOR_PIN);
 Olimex_Joystick joystick(JOYSTICK_X_PIN, JOYSTICK_Y_PIN, JOYSTICK_BUTTON_PIN);
 
 class Ampel {
   private:
-    enum State { RED, YELLOW, GREEN, BLINK_GREEN, NIGHT_MODE } state;
-    unsigned long lastStateChange;
-    int blinkInterval;
-    bool isBlinkOn;
+    enum State { RED, YELLOW, GREEN, BLINKING_GREEN } state;
+    unsigned long stateStartTime;
+    unsigned long blinkStartTime;
+    unsigned long pedestrianCooldownTime;
+    unsigned long emergencyCooldownTime;
+    unsigned long nightModeCooldownTime;
+    bool isNightMode;
 
   public:
-    Ampel() : state(RED), lastStateChange(0), blinkInterval(500), isBlinkOn(false) {}
+    Ampel() : state(RED), stateStartTime(0), blinkStartTime(0), pedestrianCooldownTime(0), emergencyCooldownTime(0), nightModeCooldownTime(0), isNightMode(false) {}
 
-    void setup() {
-      pinMode(PIR_PIN, INPUT);
+    void begin() {
       rgbLed.begin();
-      rgbLed.show(); // Initialize all pixels to 'off'
+      pinMode(PIR_PIN, INPUT);
       setColor(255, 0, 0); // Start with RED
-    }
-
-    void update() {
-      unsigned long currentMillis = millis();
-
-      switch (state) {
-        case RED:
-          if (currentMillis - lastStateChange >= 7000) {
-            setColor(255, 255, 0); // Switch to YELLOW
-            state = YELLOW;
-            lastStateChange = currentMillis;
-          }
-          break;
-
-        case YELLOW:
-          if (currentMillis - lastStateChange >= 3000) {
-            setColor(0, 255, 0); // Switch to GREEN
-            state = GREEN;
-            lastStateChange = currentMillis;
-          }
-          break;
-
-        case GREEN:
-          if (currentMillis - lastStateChange >= 5000) {
-            state = BLINK_GREEN;
-            lastStateChange = currentMillis;
-          }
-          break;
-
-        case BLINK_GREEN:
-          if (currentMillis - lastStateChange >= blinkInterval) {
-            isBlinkOn = !isBlinkOn;
-            setColor(isBlinkOn ? 0 : 0, isBlinkOn ? 255 : 0, 0); // Blink GREEN
-            lastStateChange = currentMillis;
-            if (!isBlinkOn) {
-              blinkInterval -= 500;
-              if (blinkInterval <= 0) {
-                setColor(255, 255, 0); // Switch to YELLOW
-                state = YELLOW;
-                lastStateChange = currentMillis;
-                blinkInterval = 500;
-              }
-            }
-          }
-          break;
-
-        case NIGHT_MODE:
-          if (currentMillis - lastStateChange >= 500) {
-            isBlinkOn = !isBlinkOn;
-            setColor(isBlinkOn ? 255 : 0, isBlinkOn ? 255 : 0, 0); // Blink YELLOW
-            lastStateChange = currentMillis;
-          }
-          break;
-      }
-    }
-
-    void handlePedestrian() {
-      if (state == GREEN || state == BLINK_GREEN) {
-        setColor(255, 255, 0); // Switch to YELLOW
-        state = YELLOW;
-        lastStateChange = millis();
-      } else if (state == RED) {
-        // Extend RED phase
-        lastStateChange -= 5000;
-      }
-    }
-
-    void handleEmergency() {
-      if (state == RED) {
-        setColor(255, 255, 0); // Switch to YELLOW
-        state = YELLOW;
-        lastStateChange = millis();
-      } else if (state == GREEN) {
-        // Extend GREEN phase
-        lastStateChange -= 5000;
-      }
     }
 
     void setColor(int red, int green, int blue) {
       rgbLed.setPixelColor(0, rgbLed.Color(red, green, blue));
       rgbLed.show();
-      Serial.print("Setting color to: R=");
-      Serial.print(red);
-      Serial.print(", G=");
-      Serial.print(green);
-      Serial.print(", B=");
-      Serial.println(blue);
+    }
+
+    void update() {
+      unsigned long currentMillis = millis();
+
+      if (isNightMode) {
+        if (currentMillis - stateStartTime >= 500) {
+          stateStartTime = currentMillis;
+          if (rgbLed.getPixelColor(0) == rgbLed.Color(255, 255, 0)) {
+            setColor(0, 0, 0); // Turn off
+          } else {
+            setColor(255, 255, 0); // Yellow
+          }
+        }
+        return;
+      }
+
+      switch (state) {
+        case RED:
+          if (currentMillis - stateStartTime >= 7000) {
+            state = YELLOW;
+            stateStartTime = currentMillis;
+            setColor(255, 255, 0); // Yellow
+            Serial.println("State: YELLOW");
+          }
+          break;
+
+        case YELLOW:
+          if (currentMillis - stateStartTime >= 3000) {
+            state = GREEN;
+            stateStartTime = currentMillis;
+            setColor(0, 255, 0); // Green
+            Serial.println("State: GREEN");
+          }
+          break;
+
+        case GREEN:
+          if (currentMillis - stateStartTime >= 5000) {
+            state = BLINKING_GREEN;
+            stateStartTime = currentMillis;
+            blinkStartTime = currentMillis;
+            Serial.println("State: BLINKING_GREEN");
+          }
+          break;
+
+        case BLINKING_GREEN:
+          if (currentMillis - stateStartTime >= 2000) {
+            state = RED;
+            stateStartTime = currentMillis;
+            setColor(255, 0, 0); // Red
+            Serial.println("State: RED");
+          } else if (currentMillis - blinkStartTime >= 500) {
+            blinkStartTime = currentMillis;
+            if (rgbLed.getPixelColor(0) == rgbLed.Color(0, 255, 0)) {
+              setColor(0, 0, 0); // Turn off
+            } else {
+              setColor(0, 255, 0); // Green
+            }
+          }
+          break;
+      }
     }
 
     void checkNightMode() {
-      if (lightSensor.ReadPercentage() < 10.0) {
-        if (state != NIGHT_MODE) {
-          state = NIGHT_MODE;
-          lastStateChange = millis();
+      unsigned long currentMillis = millis();
+      float lightLevel = lightSensor.ReadPercentage();
+
+      if (currentMillis - nightModeCooldownTime > 1000) {
+        if (lightLevel < 10.0) {
+          if (!isNightMode) {
+            isNightMode = true;
+            stateStartTime = millis();
+            setColor(255, 255, 0); // Yellow
+            Serial.println("Night mode activated");
+          }
+        } else if (lightLevel > 20.0) {
+          if (isNightMode) {
+            isNightMode = false;
+            state = RED;
+            stateStartTime = millis();
+            setColor(255, 0, 0); // Red
+            Serial.println("Day mode activated");
+          }
         }
-      } else if (state == NIGHT_MODE) {
-        state = RED;
-        setColor(255, 0, 0); // Switch to RED
-        lastStateChange = millis();
+        nightModeCooldownTime = currentMillis;
+      }
+    }
+
+    void checkPedestrian() {
+      unsigned long currentMillis = millis();
+      if (digitalRead(PIR_PIN) == HIGH && currentMillis - pedestrianCooldownTime > 5000) {
+        pedestrianCooldownTime = currentMillis;
+        Serial.println("Pedestrian detected");
+        if (state == GREEN || state == BLINKING_GREEN) {
+          state = YELLOW;
+          stateStartTime = currentMillis;
+          setColor(255, 255, 0); // Yellow
+          Serial.println("Switching to YELLOW");
+        } else if (state == YELLOW) {
+          state = RED;
+          stateStartTime = currentMillis;
+          setColor(255, 0, 0); // Red
+          Serial.println("Switching to RED");
+        } else if (state == RED) {
+          stateStartTime += 5000; // Extend RED phase by 5 seconds
+          Serial.println("Extending RED phase by 5 seconds");
+        }
+      }
+    }
+
+    void checkEmergencyVehicle() {
+      unsigned long currentMillis = millis();
+      if ((joystick.X() > 600 || joystick.Y() > 600 || joystick.X() < 400 || joystick.Y() < 400) && currentMillis - emergencyCooldownTime > 5000) {
+        emergencyCooldownTime = currentMillis;
+        Serial.println("Emergency vehicle detected");
+        if (state == RED) {
+          state = YELLOW;
+          stateStartTime = currentMillis;
+          setColor(255, 255, 0); // Yellow
+          Serial.println("Switching to YELLOW");
+        } else if (state == GREEN || state == BLINKING_GREEN) {
+          stateStartTime += 5000; // Extend GREEN phase by 5 seconds
+          Serial.println("Extending GREEN phase by 5 seconds");
+        }
       }
     }
 };
 
+// Initialize Ampel object
 Ampel ampel;
 
 void setup() {
-  Serial.begin(9600);
-  ampel.setup();
+  Serial.begin(9600); // Initialize Serial Monitor
+  ampel.begin();
 }
 
 void loop() {
-  ampel.update();
   ampel.checkNightMode();
-
-  // Check for pedestrian detection
-  if (digitalRead(PIR_PIN) == HIGH) {
-    ampel.handlePedestrian();
-  }
-
-  // Check for emergency vehicle detection
-  if (joystick.But()) {
-    ampel.handleEmergency();
-  }
+  ampel.checkPedestrian();
+  ampel.checkEmergencyVehicle();
+  ampel.update();
+  delay(10); // Small delay to avoid excessive CPU usage
 }
