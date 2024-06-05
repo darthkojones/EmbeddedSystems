@@ -63,13 +63,10 @@ class DibsE {
   private:
     int rgbLedPin;
     uint32_t rgbLedColor;
-    unsigned long rgbLedTimer;
-    unsigned long rgbLedTimeout;
-    bool rgbLedStatus;
     Adafruit_NeoPixel* rgbLedObject;
 
   public:
-    DibsE(int pin) : rgbLedPin(pin), rgbLedTimer(0), rgbLedTimeout(1000), rgbLedStatus(false) { // default timeout 1000ms
+    DibsE(int pin) : rgbLedPin(pin) {
       rgbLedObject = new Adafruit_NeoPixel(1, rgbLedPin, NEO_GRB + NEO_KHZ800);
       rgbLedObject->begin();
     }
@@ -88,29 +85,28 @@ class DibsE {
       Serial.print(", B=");
       Serial.println(blue);
     }
-
-    void simpleBlinkOn(int interval, int red, int green, int blue) {
-      rgbLedTimeout = interval;
-      rgbLedColor = rgbLedObject->Color(red, green, blue);
-      rgbLedObject->setPixelColor(0, rgbLedColor);
-      rgbLedObject->show();
-      rgbLedStatus = true;
-    }
-
-    void loop() {
-      if (millis() > rgbLedTimeout + rgbLedTimer) {
-        rgbLedTimer = millis();
-        if (rgbLedStatus) {
-          rgbLedObject->clear();
-          rgbLedStatus = false;
-        } else {
-          rgbLedObject->setPixelColor(0, rgbLedColor);
-          rgbLedObject->show();
-          rgbLedStatus = true;
-        }
-      }
-    }
 };
+
+// Function to interpolate color values smoothly
+void interpolateColor(int distance, int &red, int &green, int &blue) {
+  if (distance <= 20) {
+    red = map(distance, 10, 20, 255, 255);
+    green = map(distance, 0, 20, 0, 165);
+    blue = 0;
+  } else if (distance <= 40) {
+    red = map(distance, 20, 40, 255, 255);
+    green = map(distance, 20, 40, 165, 255);
+    blue = 0;
+  } else if (distance <= 80) {
+    red = map(distance, 40, 80, 255, 0);
+    green = map(distance, 40, 80, 255, 255);
+    blue = 0;
+  } else {
+    red = 0;
+    green = 255;
+    blue = 0;
+  }
+}
 
 // Initialize LedMatrix object
 LedMatrix ledMatrix(LATCH_PIN, DATA_PIN, CLOCK_PIN);
@@ -122,7 +118,7 @@ DibsE myDibse(RGB_LED_PIN);
 
 unsigned long previousDistanceMillis = 0;
 unsigned long previousScrollMillis = 0;
-const long distanceInterval = 1000;  // Update distance every 1000 milliseconds
+const long distanceInterval = 100;  // Update distance every 1000 milliseconds
 const long scrollInterval = 45;     // Update scrolling every 45 milliseconds
 
 void setup() {
@@ -146,14 +142,10 @@ void loop() {
     // Update text buffer with distance string
     textBuffer.drawText(distanceStr, 0);
 
-    // Determine the LED color based on the distance
-    if (distance < 20) {
-      myDibse.setColor(255, 0, 0); // Red for distance < 20 cm
-    } else if (distance < 40) {
-      myDibse.setColor(255, 165, 0); // Orange for distance between 20 and 40 cm
-    } else {
-      myDibse.setColor(0, 255, 0); // Green for distance >= 40 cm
-    }
+    // Determine the LED color based on the distance with smooth transition
+    int red, green, blue;
+    interpolateColor(distance, red, green, blue);
+    myDibse.setColor(red, green, blue);
   }
 
   // Check if it's time to scroll the text
